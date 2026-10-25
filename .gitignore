@@ -1,0 +1,45 @@
+
+# Environment secrets
+.env
+.env.*
+!.env.example
+
+# Dependencies
+node_modules/
+venv/
+.venv/
+
+# Python generated files
+__pycache__/
+*.py[cod]
+
+# Local AI indexes and uploaded resumes
+ai-service/data/
+backend/uploads/
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+
+# Build outputs
+frontend/dist/
+backend/dist/
+dist/
+
+# OS and editor files
+.DS_Store
+Thumbs.db
+.vscode/*
+!.vscode/settings.json
+
+# Test and coverage output
+coverage/
+.pytest_cache/
+
+# Local databases
+*.sqlite
+*.sqlite3
+
+# Python virtual environments
+ai-service/venv/
