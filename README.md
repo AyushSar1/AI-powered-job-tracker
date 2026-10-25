@@ -230,57 +230,111 @@ RAG does not automatically guarantee factual accuracy. Retrieval quality depends
 
 ## Agent Orchestration
 
-The backend includes an agent-routing layer that directs requests to supported application workflows.
+The backend implements an LLM-assisted routing layer that directs incoming chat requests to supported application workflows. It separates request classification, route validation, tool execution, retrieval, and response generation into distinct responsibilities.
 
-A key architectural distinction is that **routing, retrieval, tool execution, and language generation are separate responsibilities**.
+The current implementation uses Ollama/Mistral to select a route, validates the returned tool name, and dispatches the request through a backend tool executor. It is a controlled, single-route-per-request workflow rather than a fully autonomous, multi-step agent loop.
+
+### Agent Execution Flow
 
 ```mermaid
 flowchart TD
     Q[Incoming User Request]
+    CHAT[Express Chat Controller]
     ROUTER[Agent Router]
-    GENERAL[General Chat Workflow]
-    RESUME[Resume Search / RAG Workflow]
-    JOB[Job Matching Workflow]
-    TOOLS[Supported Tool Definitions]
-    EXEC[Tool Executor]
-    RESULT[Tool Result or Retrieved Context]
-    LLM[LLM Response Generation]
-    STREAM[Stream Response to Frontend]
+    LLM1[Ollama / Mistral<br/>Route Selection]
+    VALIDATE[Validate Allowed Tool Name]
+    EXEC[Tool Executor<br/>Switch-Based Dispatch]
 
-    Q --> ROUTER
-    ROUTER --> GENERAL
-    ROUTER --> RESUME
-    ROUTER --> JOB
-    GENERAL --> LLM
-    RESUME --> RESULT
-    TOOLS --> EXEC
-    EXEC --> RESULT
-    RESULT --> LLM
-    JOB -->|Currently under development| STREAM
-    LLM --> STREAM
+    GENERAL[General Chat Handler]
+    RESUME[Resume Search Handler]
+    JOB[Job Matching Handler]
+
+    PROMPT[Construct General Chat Prompt]
+    CHECK{Resume Available?}
+    FASTAPI[Python FastAPI RAG Endpoint]
+    CONTEXT[Retrieve Resume Context<br/>and Construct RAG Prompt]
+    LLM2[Ollama / Mistral<br/>Response Generation]
+
+    JOBMSG[Return Under-Development Message]
+    STREAM[Stream Response to Frontend]
+    SAVE[Persist Conversation in MongoDB]
+
+    Q --> CHAT
+    CHAT --> ROUTER
+    ROUTER --> LLM1
+    LLM1 --> VALIDATE
+    VALIDATE --> EXEC
+
+    EXEC --> GENERAL
+    EXEC --> RESUME
+    EXEC --> JOB
+
+    GENERAL --> PROMPT
+    PROMPT --> LLM2
+
+    RESUME --> CHECK
+    CHECK -->|Yes| FASTAPI
+    FASTAPI --> CONTEXT
+    CONTEXT --> LLM2
+    CHECK -->|No| PROMPT
+
+    JOB --> JOBMSG
+    JOBMSG --> STREAM
+    LLM2 --> STREAM
+    STREAM --> SAVE
 ```
 
 ### Responsibilities
 
-**Agent router**
+#### 1. Agent Router
 
-Classifies or routes requests to the relevant workflow. Depending on the implementation, this can involve general conversation, resume retrieval, or job-related operations.
+The agent router analyzes the incoming question using Ollama/Mistral and requests a structured routing decision. Supported routes include:
 
-**Tool definitions**
+- `general_chat` — General conversational requests.
+- `resume_search` — Questions requiring resume-related retrieval.
+- `job_match` — Job-matching requests, currently under development.
 
-Describe supported application actions that can be invoked through the backend's controlled execution logic.
+The router returns a route decision rather than directly executing application operations.
 
-**Tool executor**
+#### 2. Route Validation
 
-Executes supported operations in application code. Keeping execution in the backend limits the language model's direct access to application resources.
+The backend validates the returned route against the supported tool names before dispatching it. Invalid or unrecognized decisions fall back to the general-chat workflow.
 
-**Context and result handling**
+This validation keeps routing decisions constrained to known application behavior instead of allowing arbitrary model-generated actions to execute.
 
-Results from retrieval or supported tool execution can be incorporated into the subsequent response-generation workflow when that integration is implemented.
+#### 3. Tool Executor
 
-**Language-model generation**
+The tool executor dispatches the selected route to its corresponding handler using application-side control flow.
 
-Ollama/Mistral generates natural-language output from the prompt and context provided to it.
+The current implementation uses a switch-based dispatcher. Although a separate tool-definitions module exists, it is not currently used by the runtime routing flow.
+
+#### 4. General Chat Workflow
+
+The general-chat handler prepares the request for language-model generation. Ollama/Mistral generates the response, which the backend streams to the frontend.
+
+#### 5. Resume Search and RAG Workflow
+
+For resume-related requests, the handler checks whether resume context is available. When a resume is available, the backend calls the Python FastAPI RAG endpoint.
+
+The AI service retrieves relevant resume content and constructs a context-aware prompt. The backend then passes that prepared prompt to Ollama/Mistral for response generation.
+
+This separates retrieval and context preparation from the final language-model response.
+
+#### 6. Job Matching Workflow
+
+The `job_match` route is present in the routing architecture, but its chat handler currently returns an under-development message. It should not be considered a completed job-matching or scoring workflow.
+
+#### 7. Response Streaming and Persistence
+
+The backend streams generated responses to the frontend and persists conversation messages in MongoDB. This allows users to receive responses incrementally while maintaining conversation history.
+
+### Current Design and Limitations
+
+The current architecture provides LLM-assisted route selection, validated dispatch, controlled backend execution, resume-grounded RAG, streamed generation, and conversation persistence.
+
+However, it does not currently implement a fully autonomous agent loop that repeatedly selects tools, executes them, evaluates their results, and decides what to do next. Each incoming request follows a selected workflow.
+
+The separate tool-definitions module is also not currently connected to runtime dispatch. Integrating a formal tool registry could reduce duplication and make the routing and execution layer easier to extend as additional workflows are implemented.
 
 ### Why this is more than a basic LLM wrapper
 
