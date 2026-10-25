@@ -167,15 +167,13 @@ For example, a resume mentioning _REST API development_ may be semantically rele
 
 Cosine similarity measures the similarity between two embedding vectors:
 
-$$
-\operatorname{cosine}(A,B)=\frac{A\cdot B}{\|A\|\|B\|}
-$$
+`cosine_similarity(A, B) = (A · B) / (||A|| × ||B||)`
 
 Where:
 
-- \(A\) and \(B\) are embedding vectors.
-- \(A\cdot B\) is their dot product.
-- \(\|A\|\) and \(\|B\|\) are their magnitudes.
+- `A` and `B` are embedding vectors.
+- `A · B` is their dot product.
+- `||A||` and `||B||` are their magnitudes.
 
 For non-zero vectors, cosine similarity ranges from -1 to 1. Higher values indicate greater directional similarity.
 
