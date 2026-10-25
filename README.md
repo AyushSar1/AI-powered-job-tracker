@@ -163,21 +163,19 @@ Keyword matching alone can miss relationships between phrases with similar meani
 
 For example, a resume mentioning _REST API development_ may be semantically relevant to a question about _backend API experience_, even when the wording differs.
 
-#### Cosine similarity
+#### Cosine Similarity
 
-Cosine similarity measures the angle between two vectors:
+Cosine similarity measures the similarity between two embedding vectors:
 
-\[
-\operatorname{cosine}(A,B)=
-\frac{A\cdot B}{\|A\|\|B\|}
-\]
+$$
+\operatorname{cosine}(A,B)=\frac{A\cdot B}{\|A\|\|B\|}
+$$
 
 Where:
 
-- \(A\) is the first embedding vector.
-- \(B\) is the second embedding vector.
+- \(A\) and \(B\) are embedding vectors.
 - \(A\cdot B\) is their dot product.
-- \(\|A\|\) and \(\|B\|\) are their vector magnitudes.
+- \(\|A\|\) and \(\|B\|\) are their magnitudes.
 
 For non-zero vectors, cosine similarity ranges from -1 to 1. Higher values indicate greater directional similarity.
 
